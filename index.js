@@ -27,6 +27,21 @@ async function run() {
     const database = client.db("smartShop");
     const productsCollection = database.collection("products");
     const bidsCollection = database.collection("bids");
+    const usersCollection = database.collection("users");
+
+    /// users collection apis
+
+    app.post("/users", async (req, res) => {
+      const user = req.body;
+      const query = { email: user.email };
+      const existingUser = await usersCollection.findOne(query);
+      if (existingUser) {
+        res.send({ message: "User already exists" });
+      } else {
+        const result = await usersCollection.insertOne(user);
+        res.send(result);
+      }
+    });
 
     app.get("/products", async (req, res) => {
       const email = req.query.email;
