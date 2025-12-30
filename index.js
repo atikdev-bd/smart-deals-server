@@ -43,6 +43,7 @@ async function run() {
       }
     });
 
+    /// products collection apis
     app.get("/products", async (req, res) => {
       const email = req.query.email;
       console.log(email);
@@ -51,11 +52,22 @@ async function run() {
         query.email = email;
       }
       const cursor = productsCollection.find(query).sort({ price_min: 1 });
-      const products = await cursor.toArray();
-      res.send(products);
+      const result = await cursor.toArray();
+      res.send(result);
     });
 
-    app.get("/products/:id", async (req, res) => {
+    //product api with sort an limit
+
+    app.get("/recent-products", async (req, res) => {
+      const cursor = productsCollection
+        .find()
+        .sort({ created_at: -1 })
+        .limit(6);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    app.get("/product/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await productsCollection.findOne(query);
@@ -111,6 +123,15 @@ async function run() {
       const cursor = bidsCollection.find(query);
       const results = await cursor.toArray();
       res.send(results);
+    });
+
+    app.get("/bids/:productId", async (req, res) => {
+      const id = req.params.productId;
+      console.log(id);
+      const query = { product: id };
+      const cursor = bidsCollection.find(query).sort({ bid_price: -1 });
+      const result = await cursor.toArray();
+      res.send(result);
     });
 
     app.post("/bids", async (req, res) => {
