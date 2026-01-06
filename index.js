@@ -1,15 +1,45 @@
 const express = require("express");
 const cors = require("cors");
+require("dotenv").config();
+const admin = require("firebase-admin");
+const jwt = require("jsonwebtoken");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 const port = process.env.PORT || 3000;
 
+const serviceAccount = require("./smart-deals-22ac7-firebase-admin.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
 app.use(cors());
 app.use(express.json());
 
+const fireBaseToken = async (req, res, next) => {
+  if (!req.headers.authorization) {
+    return res.status(401).send({ massage: "Unauthorized Assess" });
+  }
+
+  const token = req.headers.authorization.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).send({ massage: "Unauthorized Assess" });
+  }
+
+  try {
+    const userInfo = await admin.auth().verifyIdToken(token);
+    console.log("after token validaion ", userInfo);
+    /// aikhane req er bodyir moddhe je token_email ase ser email ser hosse userinfo email jate kore user ke valided kora jai je jei user login ase sei user ki data chasse
+    req.token_email = userInfo.email;
+    next();
+  } catch (error) {
+    return res.status(401).send({ massage: "Unauthorized Assess" });
+  }
+};
+
 // MongoDB connection
-const uri =
-  "mongodb+srv://smartDbUser:F9PTAuBzohVHL408@cluster0.h7epoo8.mongodb.net/?appName=Cluster0";
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.h7epoo8.mongodb.net/?appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -28,6 +58,21 @@ async function run() {
     const productsCollection = database.collection("products");
     const bidsCollection = database.collection("bids");
     const usersCollection = database.collection("users");
+
+    // jwt token post api
+
+    app.post("/jwtToken", (req, res) => {
+      console.log("hit url");
+      const email = req.body.email;
+      console.log(email);
+      const token = jwt.sign({ email }, process.env.JWT_SECRET, {
+        expiresIn: "1h",
+      });
+
+      console.log(token);
+
+      res.send({ token: token });
+    });
 
     /// users collection apis
 
@@ -113,14 +158,17 @@ async function run() {
 
     // bids collection apis
 
-    app.get("/bids", async (req, res) => {
+    app.get("/bids", fireBaseToken, async (req, res) => {
       const email = req.query.email;
       console.log(email);
       const query = {};
       if (email) {
+        if (email !== req.token_email) {
+          return res.status(403).send({ massage: "Forbidden Access" });
+        }
         query.buyer_email = email;
       }
-      const cursor = bidsCollection.find(query);
+      const cursor = bidsCollection.find(query).sort({ bid_price: -1 });
       const results = await cursor.toArray();
       res.send(results);
     });
@@ -137,6 +185,15 @@ async function run() {
     app.post("/bids", async (req, res) => {
       const newBid = req.body;
       const result = await bidsCollection.insertOne(newBid);
+      res.send(result);
+    });
+
+    app.delete("/bids/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const query = { _id: new ObjectId(id) };
+      const result = await bidsCollection.deleteOne(query);
+
       res.send(result);
     });
 

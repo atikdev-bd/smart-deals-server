@@ -11,9 +11,14 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "audit": "^0.0.6",
     "cors": "^2.8.5",
     "cros": "^1.1.0",
+    "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "firebase-admin": "^13.6.0",
+    "fix": "^0.0.3",
+    "jsonwebtoken": "^9.0.3",
     "mongodb": "^7.0.0"
   }
 }
