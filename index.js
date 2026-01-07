@@ -29,13 +29,34 @@ const fireBaseToken = async (req, res, next) => {
 
   try {
     const userInfo = await admin.auth().verifyIdToken(token);
-    console.log("after token validaion ", userInfo);
+
     /// aikhane req er bodyir moddhe je token_email ase ser email ser hosse userinfo email jate kore user ke valided kora jai je jei user login ase sei user ki data chasse
     req.token_email = userInfo.email;
     next();
   } catch (error) {
     return res.status(401).send({ massage: "Unauthorized Assess" });
   }
+};
+
+const jwtVerify = (req, res, next) => {
+  console.log("api hits", req.headers.authorization);
+  if (!req.headers.authorization) {
+    return res.status(401).send({ massage: "Unauthorized Assess" });
+  }
+
+  const token = req.headers.authorization.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).send({ massage: "Unauthorized Assess" });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (error, decoded) => {
+    if (error) {
+      return res.status(401).send("Unauthorazed access");
+    }
+
+    next();
+  });
 };
 
 // MongoDB connection
@@ -62,14 +83,10 @@ async function run() {
     // jwt token post api
 
     app.post("/jwtToken", (req, res) => {
-      console.log("hit url");
-      const email = req.body.email;
-      console.log(email);
-      const token = jwt.sign({ email }, process.env.JWT_SECRET, {
+      const loggedUser = req.body;
+      const token = jwt.sign({ loggedUser }, process.env.JWT_SECRET, {
         expiresIn: "1h",
       });
-
-      console.log(token);
 
       res.send({ token: token });
     });
@@ -91,7 +108,7 @@ async function run() {
     /// products collection apis
     app.get("/products", async (req, res) => {
       const email = req.query.email;
-      console.log(email);
+
       const query = {};
       if (email) {
         query.email = email;
@@ -112,7 +129,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/product/:id", async (req, res) => {
+    app.get("/product/:id", jwtVerify, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await productsCollection.findOne(query);
@@ -149,7 +166,6 @@ async function run() {
           price: updatedProduct.price,
         },
       };
-      console.log(updatedProduct);
 
       const result = await productsCollection.updateOne(query, updateDoc);
 
@@ -160,7 +176,7 @@ async function run() {
 
     app.get("/bids", fireBaseToken, async (req, res) => {
       const email = req.query.email;
-      console.log(email);
+
       const query = {};
       if (email) {
         if (email !== req.token_email) {
@@ -175,7 +191,7 @@ async function run() {
 
     app.get("/bids/:productId", async (req, res) => {
       const id = req.params.productId;
-      console.log(id);
+
       const query = { product: id };
       const cursor = bidsCollection.find(query).sort({ bid_price: -1 });
       const result = await cursor.toArray();
@@ -190,7 +206,7 @@ async function run() {
 
     app.delete("/bids/:id", async (req, res) => {
       const id = req.params.id;
-      console.log(id);
+
       const query = { _id: new ObjectId(id) };
       const result = await bidsCollection.deleteOne(query);
 
