@@ -137,8 +137,9 @@ async function run() {
     });
 
     app.post("/products", async (req, res) => {
-      const newProject = req.body;
-      const result = await productsCollection.insertOne(newProject);
+      const newProduct = req.body;
+      console.log(newProduct);
+      const result = await productsCollection.insertOne(newProduct);
       res.send(result);
     });
 
